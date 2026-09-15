@@ -296,12 +296,14 @@ export function stepKite(k, inp, env, dt) {
   k.vx = (px - ox) / dt; k.vy = (py - oy) / dt; k.vz = (pz - oz) / dt;
 
   // --- tegangan benang
-  let tT = 0.18 + 0.5 * Math.min(1, power);
-  tT += (Math.max(0, -reelRate) / 7) * 0.45;
+  // Target lebih mudah dijaga di zona optimal (60–85%): istirahat/hold lebih tinggi,
+  // lonjakan tarikan & snatch lebih landai supaya tidak langsung overload.
+  let tT = 0.22 + 0.5 * Math.min(1, power);
+  tT += (Math.max(0, -reelRate) / 7) * 0.32;
   tT -= (Math.max(0, reelRate) / 9) * 0.5;
   tT += (k.speed / 30) * 0.15;
-  if (k.snatchT > 0) tT += 0.35;
-  if (hold) tT += 0.12;
+  if (k.snatchT > 0) tT += 0.15;
+  if (hold) tT += 0.22;
   if (canSprint) tT += 0.1;
   tT = clamp(tT, 0, 1);
   const rate = k.snatchT > 0 ? 12 : hold ? 1.5 : 3.5;
