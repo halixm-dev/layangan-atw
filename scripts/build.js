@@ -9,7 +9,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const dist = path.join(root, 'dist');
 const nm = path.join(root, 'node_modules');
 
-if (!existsSync(path.join(nm, 'three')) || !existsSync(path.join(nm, 'socket.io'))) {
+if (!['three', 'socket.io', 'peerjs'].every((m) => existsSync(path.join(nm, m)))) {
   console.error('[build] node_modules belum lengkap. Jalankan "npm install" terlebih dahulu.');
   process.exit(1);
 }
@@ -24,6 +24,9 @@ const copy = (from, to) => {
 
 copy('public', '.');
 copy('shared', 'shared');
+// logika room/lobi: dijalankan di browser host saat mode LAN (WebRTC)
+for (const f of ['room.js', 'bot.js', 'lobby.js']) copy(`server/${f}`, `server/${f}`);
+copy('node_modules/peerjs/dist/peerjs.min.js', 'vendor/peerjs.min.js');
 // Three.js: hanya file yang dipakai game
 copy('node_modules/three/build/three.module.js', 'vendor/three/build/three.module.js');
 copy('node_modules/three/build/three.core.js', 'vendor/three/build/three.core.js');

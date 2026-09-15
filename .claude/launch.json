@@ -7,6 +7,12 @@
       "runtimeArgs": ["server/index.js"],
       "port": 3100,
       "autoPort": true
+    },
+    {
+      "name": "dist-static",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["C:\\Users\\HP\\AppData\\Local\\Temp\\claude\\E--9--Azy-Creative-19--Layangan-ATW-Claude\\beeb3843-f046-4deb-b529-e1706567f63e\\scratchpad\\static-serve.mjs"],
+      "port": 3200
     }
   ]
 }

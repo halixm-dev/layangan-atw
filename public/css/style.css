@@ -126,7 +126,15 @@ dialog::backdrop { background: #1d382e66; backdrop-filter: blur(7px); }
 
 /* ---------------- labels ---------------- */
 #labels { position: fixed; inset: 0; pointer-events: none; z-index: 3; overflow: hidden; }
-.player-label { position: absolute; left: 0; top: 0; font-size: 9px; background: #f5f1e6cf; padding: 4px 7px; border-radius: 3px; white-space: nowrap; border-bottom: 2px solid var(--orange); will-change: transform; }
+.player-label { position: absolute; left: 0; top: 0; font-size: 9px; background: #f5f1e6cf; padding: 4px 7px 6px; border-radius: 3px; white-space: nowrap; will-change: transform; overflow: hidden; }
+.player-label .pl-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 5px; vertical-align: 1px; }
+/* garis bawah label = sisa kekuatan benang */
+.player-label .pl-hp { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: #23302a26; }
+.player-label .pl-hp b { display: block; height: 100%; width: 100%; background: #4f8a5b; transition: width .25s ease-out, background-color .25s; }
+.player-label.hp-mid .pl-hp b { background: #d8a24a; }
+.player-label.hp-low .pl-hp b { background: #d64f36; }
+.player-label.hp-critical .pl-hp b { animation: hpBlink .5s infinite alternate; }
+@keyframes hpBlink { to { opacity: .35; } }
 .player-label small { font-size: 7px; color: #788671; margin-left: 5px; }
 
 /* ---------------- HUD ---------------- */
@@ -385,7 +393,8 @@ body.is-touch #bigMsg { top: 24%; font-size: 20px; }
 body.is-touch #contact { top: 60%; font-size: 9px; padding: 4px 8px; }
 body.is-touch .aim { font-size: 16px; }
 body.is-touch #spectating { bottom: 20px; font-size: 8px; padding: 7px 12px; }
-body.is-touch .player-label { font-size: 8px; padding: 2px 5px; }
+body.is-touch .player-label { font-size: 8px; padding: 2px 5px 5px; }
+body.is-touch .player-label .pl-hp { height: 2.5px; }
 
 /* landscape pendek: reel slider di samping tombol aksi */
 @media (max-height: 460px) {
@@ -473,4 +482,15 @@ body.is-touch .player-label { font-size: 8px; padding: 2px 5px; }
   .secondary-actions { margin-top: 5px; gap: 5px; }
   .secondary-actions button { padding: 7px 8px; font-size: 9px; }
   .practice { margin-top: 3px; padding: 3px 0 0; font-size: 9px; }
+}
+
+/* ---------------- iOS Safari: cegah zoom saat ketuk-dua-kali / cubit / fokus input ---------------- */
+html, body, *, *::before, *::after { touch-action: manipulation; }
+#game, #joystick, #reelSlider, .reel-mobile, .combat-buttons button { touch-action: none; }
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+body { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; overscroll-behavior: none; }
+input, textarea { -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; }
+/* Safari iOS otomatis zoom bila font input < 16px */
+@media (pointer: coarse) {
+  input:not([type=checkbox]):not([type=range]), #playerName, #roomInput { font-size: 16px !important; }
 }

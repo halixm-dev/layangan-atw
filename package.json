@@ -14,11 +14,17 @@
   "engines": {
     "node": ">=20"
   },
-  "keywords": ["game", "threejs", "multiplayer", "kite"],
+  "keywords": [
+    "game",
+    "threejs",
+    "multiplayer",
+    "kite"
+  ],
   "author": "Azy Creative",
   "license": "ISC",
   "dependencies": {
     "express": "^5.2.1",
+    "peerjs": "^1.5.5",
     "socket.io": "^4.8.3",
     "three": "^0.186.0"
   }

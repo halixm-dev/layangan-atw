@@ -4,6 +4,7 @@ import { Game } from './game.js';
 import { Input } from './input.js';
 import { GameAudio } from './audio.js';
 import { Hud, escapeHtml, clock, hex } from './hud.js';
+import { NetBridge, LanSession, lanErrorMessage } from './net.js';
 
 const $ = (id) => document.getElementById(id);
 const CLASS_UI = {
@@ -26,8 +27,11 @@ const game = new Game($('game'), { audio, input, hud });
 const serverParam = new URLSearchParams(location.search).get('server');
 if (serverParam !== null) store.set('atw_server', serverParam.trim().replace(/\/+$/, ''));
 const SERVER_URL = store.get('atw_server', '') || window.ATW_SERVER_URL || undefined;
-const socket = io(SERVER_URL, { transports: ['websocket', 'polling'], autoConnect: false, reconnectionDelayMax: 10000 });
-window.__atw = { game, socket }; // handle debug
+// Semua handler didaftarkan ke jembatan; socket aktif = Socket.io (online) atau socket LAN (WebRTC / lokal)
+const socket = new NetBridge();
+let netMode = 'detect'; // 'online' | 'lan' | 'detect'
+let lan = null;         // LanSession aktif (host / join / practice)
+window.__atw = { game, socket, get lan() { return lan; }, get netMode() { return netMode; } }; // handle debug
 
 let myClass = store.get('atw_class', 'speed');
 if (!CLASSES[myClass]) myClass = 'speed';
@@ -46,34 +50,87 @@ function toast(msg, ms = 3800) {
   toast.tm = setTimeout(() => t.classList.remove('show'), ms);
 }
 
+function setConnection(text, online) {
+  $('connectionText').textContent = text;
+  document.querySelector('.connection').classList.toggle('online', !!online);
+}
+
 /**
- * Pastikan server game benar-benar ada sebelum membuka WebSocket.
- * Hosting statis (mis. Vercel) tidak punya /health → tampilkan penjelasan, bukan error WebSocket berulang.
+ * Pilih mode jaringan: ONLINE bila ada server game (npm start / ATW_SERVER_URL),
+ * selain itu LAN — browser host menjadi server, teman satu Wi-Fi bergabung lewat WebRTC.
  */
-let serverWarned = false;
-async function connectServer() {
+async function detectNetwork() {
   const base = SERVER_URL || location.origin;
   try {
     const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 70000); // server gratis (Render) bisa butuh ±1 menit untuk bangun
-    $('connectionText').textContent = SERVER_URL ? 'Membangunkan server…' : 'Menghubungkan';
+    // server gratis (Render) bisa butuh ±1 menit untuk bangun; hosting statis menjawab 404 dengan cepat
+    const timer = setTimeout(() => ctrl.abort(), SERVER_URL ? 70000 : 5000);
+    setConnection(SERVER_URL ? 'Membangunkan server…' : 'Memeriksa server…');
     const r = await fetch(`${base}/health`, { cache: 'no-store', signal: ctrl.signal });
     clearTimeout(timer);
     const j = await r.json();
     if (!j?.ok) throw new Error('health');
-    socket.connect();
+    netMode = 'online';
+    const s = io(SERVER_URL, { transports: ['websocket', 'polling'], reconnectionDelayMax: 10000 });
+    socket.use(s);
   } catch {
-    $('connectionText').textContent = SERVER_URL ? 'Server game tidak merespons' : 'Server game belum diatur';
-    document.querySelector('.connection').classList.remove('online');
-    if (!serverWarned) {
-      serverWarned = true;
-      toast(SERVER_URL
-        ? `Server game (${SERVER_URL}) belum merespons. Mencoba lagi…`
-        : 'Server game belum diatur. Set ATW_SERVER_URL di Vercel ke alamat server game (mis. Render) lalu redeploy.', 9000);
-      console.warn(`[ATW] Server game tidak ditemukan di ${base}. Hosting statis seperti Vercel tidak bisa menjalankan Socket.io; ` +
-        'deploy server (npm start) ke Render/Railway lalu isi ATW_SERVER_URL, atau uji dengan ?server=https://alamat-server');
+    if (SERVER_URL) console.warn(`[ATW] Server online ${SERVER_URL} tidak merespons — beralih ke mode LAN.`);
+    enableLanMode();
+  }
+  updateButtons();
+}
+
+function enableLanMode() {
+  netMode = 'lan';
+  document.body.classList.add('lan-mode');
+  $('quickPlay').innerHTML = 'BUAT ROOM LAN <span>↗</span>';
+  $('createRoom').classList.add('hidden');
+  $('joinRoom').innerHTML = 'Gabung room LAN <span>→</span>';
+  $('panelFootLeft').innerHTML = '<i></i> SATU JARINGAN WI-FI';
+  $('joinEyebrow').textContent = 'GABUNG ROOM LAN';
+  $('joinHint').textContent = 'Masukkan kode dari host. Pastikan kamu terhubung ke Wi-Fi / hotspot yang sama dengan host.';
+  setConnection('Mode LAN', true);
+}
+
+/** Tutup sesi LAN tanpa memicu handler "disconnect" (dipakai saat pindah sesi / kembali ke beranda) */
+function closeLan() {
+  if (!lan) return;
+  const l = lan;
+  lan = null;
+  socket.use(null);
+  l.close();
+}
+
+let lanBusy = false;
+async function startLan(event, payload) {
+  if (lanBusy) return;
+  lanBusy = true;
+  updateButtons();
+  closeLan();
+  try {
+    let emitEvent = event;
+    if (event === 'soloMatch') {
+      lan = LanSession.practice();
+    } else if (event === 'joinRoom') {
+      toast('Menghubungkan ke host…', 15000);
+      lan = await LanSession.join(payload.code);
+    } else {
+      toast('Membuat room LAN…', 8000);
+      lan = await LanSession.host();
+      emitEvent = 'createRoom';
     }
-    setTimeout(connectServer, 15000);
+    const s = lan.socket;
+    socket.use(s);
+    const go = () => socket.emit(emitEvent, payload);
+    if (s.connected) go(); else s.on('connect', go);
+    if (event !== 'soloMatch') $('toast').classList.remove('show');
+  } catch (e) {
+    closeLan();
+    console.warn('[ATW] LAN', e);
+    toast(lanErrorMessage(e), 7000);
+  } finally {
+    lanBusy = false;
+    updateButtons();
   }
 }
 
@@ -88,7 +145,24 @@ function show(screen) {
 }
 
 function updateButtons() {
-  for (const id of ['quickPlay', 'createRoom', 'joinRoom', 'practice']) $(id).disabled = !socket.connected || !loaded;
+  const ready = loaded && !lanBusy && (netMode === 'lan' || (netMode === 'online' && socket.connected));
+  for (const id of ['quickPlay', 'createRoom', 'joinRoom', 'practice']) $(id).disabled = !ready;
+}
+
+// iOS Safari mengabaikan user-scalable=no: blok zoom ketuk-dua-kali & cubit secara manual
+{
+  let lastTouchEnd = 0;
+  document.addEventListener('touchend', (e) => {
+    const now = Date.now();
+    const typing = /INPUT|TEXTAREA|SELECT/.test(e.target.tagName);
+    if (!typing && now - lastTouchEnd < 350) e.preventDefault();
+    lastTouchEnd = now;
+  }, { passive: false });
+  for (const ev of ['gesturestart', 'gesturechange', 'gestureend']) {
+    document.addEventListener(ev, (e) => e.preventDefault(), { passive: false });
+  }
+  document.addEventListener('dblclick', (e) => e.preventDefault(), { passive: false });
+  document.addEventListener('touchmove', (e) => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
 }
 
 document.addEventListener('pointerdown', () => audio.init(), { once: true });
@@ -133,11 +207,14 @@ const playerName = () => {
 
 // ------------------------------------------------------------------ tombol beranda
 function join(event, extra = {}) {
-  if (!loaded || !socket.connected) return toast('Tunggu aset dan koneksi siap.');
+  if (!loaded || netMode === 'detect') return toast('Tunggu aset dan koneksi siap.');
   audio.init();
   audio.click();
   lastMode = event;
-  socket.emit(event, { name: playerName(), cls: myClass, ...extra });
+  const payload = { name: playerName(), cls: myClass, ...extra };
+  if (netMode === 'lan') return startLan(event, payload);
+  if (!socket.connected) return toast('Menunggu koneksi server…');
+  socket.emit(event, payload);
 }
 $('quickPlay').onclick = () => join('quickMatch');
 $('createRoom').onclick = () => join('createRoom');
@@ -257,6 +334,7 @@ $('playAgain').onclick = () => {
 
 function returnHome() {
   socket.emit('leaveRoom');
+  if (netMode === 'lan') { closeLan(); setConnection('Mode LAN', true); }
   room = null;
   inMatch = false;
   clearInterval(resultsTimer);
@@ -268,12 +346,19 @@ function returnHome() {
 function renderRoom(info) {
   room = info;
   const isHost = info.hostId === socket.id;
-  $('lobbyEyebrow').textContent = info.isPrivate ? 'ROOM PRIVAT · TITIK PELUNCURAN' : 'ROOM PUBLIK · TITIK PELUNCURAN';
   $('copyCode').classList.toggle('hidden', !info.code);
   if (info.code) $('copyCode').innerHTML = `${info.code} <span>⧉</span>`;
-  $('lobbyText').textContent = info.code
-    ? 'Bagikan kode ini kepada teman. Klik untuk menyalin link undangan.'
-    : 'Kamu masuk antrean publik. Penerbang lain akan bergabung sebentar lagi.';
+  if (netMode === 'lan') {
+    $('lobbyEyebrow').textContent = 'ROOM LAN · WI-FI YANG SAMA';
+    $('lobbyText').textContent = lan?.kind === 'host'
+      ? 'Bagikan kode ini ke teman yang terhubung ke Wi-Fi/hotspot yang sama. Perangkatmu adalah server — biarkan game tetap terbuka.'
+      : 'Terhubung langsung ke perangkat host. Room berakhir bila host menutup game.';
+  } else {
+    $('lobbyEyebrow').textContent = info.isPrivate ? 'ROOM PRIVAT · TITIK PELUNCURAN' : 'ROOM PUBLIK · TITIK PELUNCURAN';
+    $('lobbyText').textContent = info.code
+      ? 'Bagikan kode ini kepada teman. Klik untuk menyalin link undangan.'
+      : 'Kamu masuk antrean publik. Penerbang lain akan bergabung sebentar lagi.';
+  }
 
   const list = $('playersList');
   list.replaceChildren();
@@ -307,13 +392,25 @@ function renderRoom(info) {
 
 // ------------------------------------------------------------------ socket
 socket.on('connect', () => {
-  $('connectionText').textContent = 'Server terhubung';
-  document.querySelector('.connection').classList.add('online');
+  if (netMode === 'lan') {
+    setConnection(lan?.kind === 'host' ? 'Host LAN aktif' : lan?.kind === 'join' ? 'Terhubung ke host' : 'Latihan offline', true);
+  } else setConnection('Server terhubung', true);
   updateButtons();
 });
-socket.on('disconnect', () => {
-  $('connectionText').textContent = 'Menghubungkan ulang';
-  document.querySelector('.connection').classList.remove('online');
+socket.on('disconnect', (reason) => {
+  if (netMode === 'lan') {
+    // hanya terjadi saat koneksi ke host putus tanpa sengaja (penutupan sengaja memakai closeLan)
+    const wasJoin = lan?.kind === 'join';
+    closeLan();
+    setConnection('Mode LAN', true);
+    updateButtons();
+    if (room || inMatch) {
+      toast(wasJoin ? 'Koneksi ke host terputus — host menutup room atau keluar dari jaringan.' : 'Sesi LAN berakhir.', 6000);
+      returnHome();
+    }
+    return;
+  }
+  setConnection('Menghubungkan ulang', false);
   updateButtons();
   if (room) { toast('Koneksi terputus. Bergabung kembali setelah server terhubung.'); returnHome(); }
 });
@@ -416,14 +513,14 @@ setInterval(() => {
   const t = performance.now();
   socket.emit('ping2', t, () => {
     const ms = Math.round(performance.now() - t);
-    $('connectionText').textContent = room ? `${ms} ms` : 'Server terhubung';
+    if (room) $('connectionText').textContent = `${ms} ms`;
   });
 }, 3000);
 
 // ------------------------------------------------------------------ boot
 selectClass(myClass, false);
 updateButtons();
-connectServer();
+detectNetwork();
 (async () => {
   try {
     await game.load((p, done, total) => {

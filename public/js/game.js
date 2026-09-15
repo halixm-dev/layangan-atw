@@ -51,15 +51,36 @@ class StringLine {
 function makeLabel(info) {
   const el = document.createElement('div');
   el.className = 'player-label';
-  el.style.borderBottomColor = '#' + new THREE.Color(info.color).getHexString();
-  el.textContent = info.name;
+  const dot = document.createElement('i');
+  dot.className = 'pl-dot';
+  dot.style.background = '#' + new THREE.Color(info.color).getHexString();
+  el.append(dot, document.createTextNode(info.name));
   if (info.isBot) {
     const s = document.createElement('small');
     s.textContent = 'BOT';
     el.append(s);
   }
+  // garis bawah = sisa kekuatan benang (HP)
+  const bar = document.createElement('span');
+  bar.className = 'pl-hp';
+  const fill = document.createElement('b');
+  bar.append(fill);
+  el.append(bar);
+  el._hpFill = fill;
   document.getElementById('labels').append(el);
   return el;
+}
+
+/** Perbarui bar HP pada label nama (lebar + warna sesuai sisa kekuatan benang) */
+function setLabelHp(el, hp, maxHp) {
+  if (!el?._hpFill) return;
+  const pct = Math.max(0, Math.min(1, hp / (maxHp || 1)));
+  if (el._hpPct === pct) return;
+  el._hpPct = pct;
+  el._hpFill.style.width = `${(pct * 100).toFixed(1)}%`;
+  el.classList.toggle('hp-mid', pct <= 0.6 && pct > 0.3);
+  el.classList.toggle('hp-low', pct <= 0.3);
+  el.classList.toggle('hp-critical', pct <= 0.15);
 }
 const _proj = new THREE.Vector3();
 /** Batasi bunyi benturan beruntun agar tidak menumpuk */
@@ -535,6 +556,7 @@ export class Game {
       const v = this.views.get(id);
       if (!v) continue;
       v.hp = hp; v.kills = kills;
+      setLabelHp(v.label, hp, this.roster.get(id)?.maxHp);
       if (id === this.myId && this.me) {
         this.me.hp = hp;
         this.me.outT = outT;

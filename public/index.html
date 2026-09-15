@@ -24,6 +24,7 @@
   </script>
   <script src="/config.js"></script>
   <script src="/vendor/socket.io.min.js"></script>
+  <script src="/vendor/peerjs.min.js"></script>
 </head>
 <body>
   <canvas id="game" aria-label="Arena layangan tiga dimensi"></canvas>
@@ -76,7 +77,7 @@
         <button id="joinRoom">Gabung room <span>→</span></button>
       </div>
       <button id="practice" class="practice">Latihan dengan bot <span>↗</span></button>
-      <div class="panel-foot"><span><i></i> 4–8 PENERBANG</span><span>± 5 MENIT / RONDE</span></div>
+      <div class="panel-foot"><span id="panelFootLeft"><i></i> 4–8 PENERBANG</span><span>± 5 MENIT / RONDE</span></div>
     </section>
 
     <footer>
@@ -194,8 +195,9 @@
   <dialog id="joinDialog">
     <form id="joinForm">
       <button type="button" class="close-dialog" aria-label="Tutup">×</button>
-      <div class="eyebrow">TERBANG BERSAMA TEMAN</div>
+      <div class="eyebrow" id="joinEyebrow">TERBANG BERSAMA TEMAN</div>
       <h2>Masuk arena.</h2>
+      <p id="joinHint" class="muted"></p>
       <label class="field-label" for="roomInput">KODE ROOM</label>
       <input id="roomInput" maxlength="4" minlength="4" required placeholder="AB12" pattern="[A-Za-z0-9]{4}" autocomplete="off" />
       <button class="primary" type="submit">GABUNG ROOM <span>→</span></button>
