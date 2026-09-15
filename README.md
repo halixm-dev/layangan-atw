@@ -107,6 +107,9 @@ Game ini terdiri dari dua bagian:
 3. Vercel → **Settings → Environment Variables**: `ATW_SERVER_URL` = URL server dari langkah 1.
 4. **Redeploy** (env dibaca saat build dan ditulis ke `dist/config.js`).
 
+Uji cepat tanpa redeploy: buka `https://domain-vercel-kamu/?server=https://adu-layangan-atw.onrender.com` (tersimpan di browser; `?server=` kosong untuk menghapus).
+Bila server belum diatur, halaman menampilkan "Server game belum diatur" alih-alih error WebSocket.
+
 Uji build secara lokal: `ATW_SERVER_URL=http://localhost:3000 npm run build` lalu `npm run preview`.
 Catatan: paket gratis Render "tidur" setelah tidak aktif, sehingga koneksi pertama bisa butuh ±30–60 detik. Pertandingan disimpan di memori server (satu instance).
 

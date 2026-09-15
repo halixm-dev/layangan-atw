@@ -21,9 +21,12 @@ const audio = new GameAudio();
 const input = new Input($('game'));
 const hud = new Hud(audio);
 const game = new Game($('game'), { audio, input, hud });
-// ATW_SERVER_URL diisi dari config.js (build Vercel); kosong = server di origin yang sama
-const SERVER_URL = window.ATW_SERVER_URL || undefined;
-const socket = io(SERVER_URL, { transports: ['websocket', 'polling'] });
+// Alamat server game: ?server=URL (disimpan, untuk uji cepat) > ATW_SERVER_URL dari config.js (build Vercel)
+// > origin yang sama (dijalankan lewat `npm start`). `?server=` kosong menghapus override.
+const serverParam = new URLSearchParams(location.search).get('server');
+if (serverParam !== null) store.set('atw_server', serverParam.trim().replace(/\/+$/, ''));
+const SERVER_URL = store.get('atw_server', '') || window.ATW_SERVER_URL || undefined;
+const socket = io(SERVER_URL, { transports: ['websocket', 'polling'], autoConnect: false, reconnectionDelayMax: 10000 });
 window.__atw = { game, socket }; // handle debug
 
 let myClass = store.get('atw_class', 'speed');
@@ -35,12 +38,43 @@ let lastMode = null;
 let resultsTimer = null;
 
 // ------------------------------------------------------------------ util
-function toast(msg) {
+function toast(msg, ms = 3800) {
   const t = $('toast');
   t.textContent = msg;
   t.classList.add('show');
   clearTimeout(toast.tm);
-  toast.tm = setTimeout(() => t.classList.remove('show'), 3800);
+  toast.tm = setTimeout(() => t.classList.remove('show'), ms);
+}
+
+/**
+ * Pastikan server game benar-benar ada sebelum membuka WebSocket.
+ * Hosting statis (mis. Vercel) tidak punya /health → tampilkan penjelasan, bukan error WebSocket berulang.
+ */
+let serverWarned = false;
+async function connectServer() {
+  const base = SERVER_URL || location.origin;
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 70000); // server gratis (Render) bisa butuh ±1 menit untuk bangun
+    $('connectionText').textContent = SERVER_URL ? 'Membangunkan server…' : 'Menghubungkan';
+    const r = await fetch(`${base}/health`, { cache: 'no-store', signal: ctrl.signal });
+    clearTimeout(timer);
+    const j = await r.json();
+    if (!j?.ok) throw new Error('health');
+    socket.connect();
+  } catch {
+    $('connectionText').textContent = SERVER_URL ? 'Server game tidak merespons' : 'Server game belum diatur';
+    document.querySelector('.connection').classList.remove('online');
+    if (!serverWarned) {
+      serverWarned = true;
+      toast(SERVER_URL
+        ? `Server game (${SERVER_URL}) belum merespons. Mencoba lagi…`
+        : 'Server game belum diatur. Set ATW_SERVER_URL di Vercel ke alamat server game (mis. Render) lalu redeploy.', 9000);
+      console.warn(`[ATW] Server game tidak ditemukan di ${base}. Hosting statis seperti Vercel tidak bisa menjalankan Socket.io; ` +
+        'deploy server (npm start) ke Render/Railway lalu isi ATW_SERVER_URL, atau uji dengan ?server=https://alamat-server');
+    }
+    setTimeout(connectServer, 15000);
+  }
 }
 
 /** screen: 'home' | 'lobby' | 'hud' | 'results' */
@@ -389,6 +423,7 @@ setInterval(() => {
 // ------------------------------------------------------------------ boot
 selectClass(myClass, false);
 updateButtons();
+connectServer();
 (async () => {
   try {
     await game.load((p, done, total) => {

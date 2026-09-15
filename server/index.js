@@ -17,7 +17,10 @@ app.use('/vendor/three', express.static(path.join(root, 'node_modules', 'three')
 app.get('/vendor/socket.io.min.js', (_req, res) => res.sendFile(path.join(root, 'node_modules', 'socket.io', 'client-dist', 'socket.io.min.js')));
 // dijalankan langsung lewat Node: client terhubung ke origin yang sama
 app.get('/config.js', (_req, res) => res.type('application/javascript').send('window.ATW_SERVER_URL = "";\n'));
-app.get('/health', (_req, res) => res.json({ ok: true, rooms: rooms.size }));
+app.get('/health', (_req, res) => {
+  res.set('Access-Control-Allow-Origin', '*'); // dicek oleh frontend yang di-hosting terpisah (mis. Vercel)
+  res.json({ ok: true, rooms: rooms.size });
+});
 
 const http = createServer(app);
 const io = new Server(http, { cors: { origin: '*' } });
