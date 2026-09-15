@@ -88,8 +88,27 @@ Tuning gameplay (damage, zona, statistik kelas) ada di [shared/constants.js](sha
 
 ## Deploy online
 
-Butuh hosting yang mendukung WebSocket & proses Node yang berjalan terus (mis. Railway, Render, Fly.io, VPS).
-Perintah start: `npm start`, port dibaca dari env `PORT`. Pertandingan disimpan di memori server (satu instance).
+Game ini terdiri dari dua bagian:
+
+| Bagian | Isi | Hosting |
+|---|---|---|
+| **Frontend statis** | HTML/JS/aset 3D (`npm run build` → `dist/`) | Vercel, Netlify, GitHub Pages, dll. |
+| **Server game realtime** | Express + Socket.io, loop 30 Hz (`npm start`) | Render, Railway, Fly.io, VPS — **wajib mendukung WebSocket & proses yang terus berjalan** |
+
+> Vercel **tidak bisa** menjalankan server Socket.io (fungsi serverless tanpa koneksi WebSocket permanen). Karena itu server game di-deploy terpisah.
+
+### Opsi A — Semua di Render (paling sederhana)
+1. Render → **New → Blueprint** → pilih repo ini (memakai [render.yaml](render.yaml)).
+2. Buka URL Render-nya. Frontend & server berjalan bersama, tanpa konfigurasi tambahan.
+
+### Opsi B — Frontend di Vercel + server di Render
+1. Deploy server seperti Opsi A, catat URL-nya, mis. `https://adu-layangan-atw.onrender.com`.
+2. Di Vercel: import repo. [vercel.json](vercel.json) otomatis menjalankan `npm install` → `npm run build` → output `dist/`.
+3. Vercel → **Settings → Environment Variables**: `ATW_SERVER_URL` = URL server dari langkah 1.
+4. **Redeploy** (env dibaca saat build dan ditulis ke `dist/config.js`).
+
+Uji build secara lokal: `ATW_SERVER_URL=http://localhost:3000 npm run build` lalu `npm run preview`.
+Catatan: paket gratis Render "tidur" setelah tidak aktif, sehingga koneksi pertama bisa butuh ±30–60 detik. Pertandingan disimpan di memori server (satu instance).
 
 ## Catatan
 

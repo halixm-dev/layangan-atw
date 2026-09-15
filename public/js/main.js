@@ -21,7 +21,9 @@ const audio = new GameAudio();
 const input = new Input($('game'));
 const hud = new Hud(audio);
 const game = new Game($('game'), { audio, input, hud });
-const socket = io({ transports: ['websocket', 'polling'] });
+// ATW_SERVER_URL diisi dari config.js (build Vercel); kosong = server di origin yang sama
+const SERVER_URL = window.ATW_SERVER_URL || undefined;
+const socket = io(SERVER_URL, { transports: ['websocket', 'polling'] });
 window.__atw = { game, socket }; // handle debug
 
 let myClass = store.get('atw_class', 'speed');

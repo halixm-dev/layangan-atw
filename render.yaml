@@ -1,0 +1,13 @@
+# Server game realtime (Express + Socket.io) di Render — mendukung WebSocket.
+# Render → New → Blueprint → pilih repo ini.
+services:
+  - type: web
+    name: adu-layangan-atw
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: 22
