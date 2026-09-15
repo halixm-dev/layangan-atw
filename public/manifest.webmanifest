@@ -1,0 +1,13 @@
+{
+  "name": "Adu Layangan ATW",
+  "short_name": "Layangan ATW",
+  "description": "Mini battle royale adu layangan 3D multiplayer",
+  "start_url": "/",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#e9eddf",
+  "theme_color": "#ede9dc",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

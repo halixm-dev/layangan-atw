@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#ede9dc" />
+  <title>Adu Layangan ATW — Rebut Langitmu</title>
+  <link rel="icon" href="/icon.svg" />
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="apple-touch-icon" href="/icon.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/style.css" />
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "/vendor/three/build/three.module.js",
+        "three/addons/": "/vendor/three/examples/jsm/"
+      }
+    }
+  </script>
+  <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+  <canvas id="game" aria-label="Arena layangan tiga dimensi"></canvas>
+  <div class="grain"></div>
+  <div id="labels"></div>
+
+  <header>
+    <a class="brand" href="/" aria-label="Adu Layangan ATW beranda">
+      <span class="brand-icon">◈</span><span>ATW<span class="brand-sub">ADU LAYANGAN</span></span>
+    </a>
+    <nav>
+      <span class="tag">MULTIPLAYER KITE BATTLE</span>
+      <button id="helpButton" class="icon-btn" aria-label="Panduan kontrol">?</button>
+      <button id="soundButton" class="icon-btn" aria-label="Matikan suara">♫</button>
+      <span class="connection"><i></i><span id="connectionText">Menghubungkan</span></span>
+    </nav>
+  </header>
+
+  <!-- BERANDA -->
+  <main id="home">
+    <section class="hero">
+      <div class="eyebrow"><span></span> DARI TANAH, MENUJU LANGIT.</div>
+      <h1>Rebut<br />langit<span class="italic">mu.</span><span class="orange-dot">✦</span></h1>
+      <p>Angin boleh berubah. Nyali jangan.<br />Adu benang, kuasai arah angin, dan jadilah<br />layangan terakhir yang terbang.</p>
+      <div class="hero-meta"><span>01 — ARENA NUSANTARA</span><span>3D / REAL-TIME PvP</span></div>
+    </section>
+
+    <div class="scene-caption">
+      <span class="little-cross">+</span>
+      <div><strong>LANGIT DESA</strong><span>Sawah, angin sore, dan satu pemenang.</span></div>
+      <span class="coords">07° S<br />110° E</span>
+    </div>
+
+    <section class="launch-panel">
+      <div class="panel-top">
+        <div><span class="eyebrow">SIAP MENGUDARA?</span><h2>Pilih jagoanmu.</h2></div>
+        <span class="step">01 / 03</span>
+      </div>
+      <div class="classes" role="group" aria-label="Pilih kelas layangan">
+        <button class="class-card" data-class="speed" aria-pressed="false"><span class="kite-symbol orange">◈</span><span><strong>Speed Hunter</strong><small>CEPAT &amp; TAJAM</small></span><span class="selected-mark">↗</span></button>
+        <button class="class-card" data-class="heavy" aria-pressed="false"><span class="kite-symbol teal">◈</span><span><strong>Heavy Brawler</strong><small>KUAT &amp; TANGGUH</small></span><span class="selected-mark">↗</span></button>
+        <button class="class-card" data-class="acro" aria-pressed="false"><span class="kite-symbol purple">◈</span><span><strong>Acrobatic Wind</strong><small>LINCAH &amp; GESIT</small></span><span class="selected-mark">↗</span></button>
+      </div>
+      <div class="class-info"><span id="classSkill">ϟ Snatch Cut</span><span id="classDesc">Sentakan cepat. Potongan mematikan.</span></div>
+      <label class="field-label" for="playerName">NAMA PENERBANG</label>
+      <input id="playerName" maxlength="16" placeholder="Tulis nama panggilanmu" autocomplete="nickname" />
+      <button id="quickPlay" class="primary">MAIN ONLINE <span>↗</span></button>
+      <div class="secondary-actions">
+        <button id="createRoom">Buat room <span>+</span></button>
+        <button id="joinRoom">Gabung room <span>→</span></button>
+      </div>
+      <button id="practice" class="practice">Latihan dengan bot <span>↗</span></button>
+      <div class="panel-foot"><span><i></i> 4–8 PENERBANG</span><span>± 5 MENIT / RONDE</span></div>
+    </section>
+
+    <footer>
+      <span>BUKAN SEKADAR MAIN LAYANGAN.</span>
+      <button id="controlsLink">WASD untuk terbang <span>·</span> Pelajari kontrol ↗</button>
+      <span>ATW ORIGINAL / 2026</span>
+    </footer>
+  </main>
+
+  <!-- LOBI ROOM -->
+  <section id="lobby" class="overlay hidden">
+    <div class="modal">
+      <div class="eyebrow" id="lobbyEyebrow">TITIK PELUNCURAN</div>
+      <h2>Langit menunggu.</h2>
+      <p id="lobbyText">Bagikan kode ini kepada teman yang membuka server yang sama.</p>
+      <button id="copyCode" class="room-code">---- <span>⧉</span></button>
+      <div id="playersList"></div>
+      <label class="field-label lobby-label">GANTI JAGOAN</label>
+      <div id="lobbyClasses" class="class-chips"></div>
+      <div class="secondary-actions">
+        <button id="addBot">Tambah bot <span>+</span></button>
+        <button id="kickBots">Hapus bot <span>−</span></button>
+      </div>
+      <button id="startMatch" class="primary">TERBANG BERSAMA <span>↗</span></button>
+      <p id="lobbyNote" class="muted"></p>
+      <button class="text-btn" id="leaveLobby">← Kembali</button>
+    </div>
+  </section>
+
+  <!-- HUD -->
+  <section id="hud" class="hidden">
+    <div class="match-top">
+      <div class="hud-card">
+        <small>MASIH MENGUDARA</small>
+        <strong><span id="alive">6</span><span class="muted"> / <span id="total">6</span></span></strong>
+        <span id="matchTime">00:00</span>
+        <span id="killCount" class="kill-count">✂ 0</span>
+      </div>
+      <div class="wind-pill">
+        <span id="windArrow" class="wind-arrow">↑</span><span id="wind">8.0 m/s</span>
+        <span class="divider">/</span><span id="zone">ZONA 150 m</span>
+        <span id="zoneNext" class="zone-next"></span>
+      </div>
+      <div class="top-actions">
+        <button id="camButton" class="icon-btn" aria-label="Ganti kamera (V)">◎</button>
+        <button id="exitMatch" class="icon-btn" aria-label="Keluar pertandingan">×</button>
+      </div>
+    </div>
+    <div id="feed"></div>
+    <canvas id="minimap" width="170" height="170" aria-label="Peta zona aman"></canvas>
+    <div id="danger"></div>
+    <div id="countdown"></div>
+    <div id="bigMsg"></div>
+    <div id="contact"></div>
+    <div class="aim">+</div>
+
+    <div class="instruments">
+      <div class="tension-card">
+        <div class="meter-heading"><span>TEGANGAN BENANG <em id="tensionState">NORMAL</em></span><strong id="tensionValue">65%</strong></div>
+        <div class="tension-track"><span id="tensionNeedle"></span></div>
+        <div class="overload"><i id="overloadBar"></i></div>
+        <div class="meter-ticks"><span>KENDUR</span><span>OPTIMAL</span><span>PUTUS</span></div>
+        <div class="health"><span>BENANG</span><div><i id="healthBar"></i></div><b id="hpValue">100</b></div>
+        <div class="health"><span>STAMINA</span><div><i id="staminaBar"></i></div><b id="staminaValue">100</b></div>
+        <div class="line-length">PANJANG TALI <b id="lineLength">34 m</b></div>
+      </div>
+      <div class="combat-buttons">
+        <button id="sprintButton" aria-label="Sprint dive"><i class="cd"></i><span>⇊</span><strong>DIVE</strong></button>
+        <button id="strikeButton"><i class="cd"></i><span>✂</span><strong>SENTAK</strong><small>KLIK KIRI</small></button>
+        <button id="skillButton"><i class="cd"></i><span>ϟ</span><strong id="skillName">SNATCH CUT</strong><small id="skillCooldown">Q / SPACE</small></button>
+      </div>
+    </div>
+
+    <div class="desktop-controls">
+      <span>W S <b id="wsHint">Menukik / naik</b></span><span>A D <b>Belok</b></span><span>SCROLL · R F <b>Ulur / tarik</b></span>
+      <span>SHIFT <b>Sprint</b></span><span>V <b>Kamera</b></span>
+    </div>
+
+    <div id="joystick"><span></span></div>
+    <div class="reel-mobile">
+      <label>ULUR</label>
+      <div id="reelSlider" aria-label="Ulur atau tarik benang"><span></span></div>
+      <label>TARIK</label>
+    </div>
+
+    <div id="spectating" class="hidden">
+      <span id="spectateText">BENANGMU PUTUS · MENONTON</span>
+      <div class="spec-row">
+        <button id="prevSpec" aria-label="Sebelumnya">←</button>
+        <strong id="specName">–</strong>
+        <button id="nextSpec" aria-label="Berikutnya">→</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- HASIL -->
+  <section id="results" class="overlay hidden">
+    <div class="modal result">
+      <div class="result-emblem">◈</div>
+      <div class="eyebrow">LAST KITE FLYING</div>
+      <h2 id="resultTitle">Langit milikmu.</h2>
+      <p id="resultText"></p>
+      <div class="result-stats">
+        <div><strong id="resultPlace">#1</strong><span>PERINGKAT</span></div>
+        <div><strong id="resultKills">0</strong><span>BENANG DIPUTUS</span></div>
+        <div><strong id="resultTime">0:00</strong><span>WAKTU RONDE</span></div>
+      </div>
+      <div id="rankList"></div>
+      <button id="playAgain" class="primary">MAIN LAGI <span>↗</span></button>
+      <p id="resultTimer" class="muted"></p>
+      <button id="backHome" class="text-btn">Kembali ke beranda</button>
+    </div>
+  </section>
+
+  <dialog id="joinDialog">
+    <form id="joinForm">
+      <button type="button" class="close-dialog" aria-label="Tutup">×</button>
+      <div class="eyebrow">TERBANG BERSAMA TEMAN</div>
+      <h2>Masuk arena.</h2>
+      <label class="field-label" for="roomInput">KODE ROOM</label>
+      <input id="roomInput" maxlength="4" minlength="4" required placeholder="AB12" pattern="[A-Za-z0-9]{4}" autocomplete="off" />
+      <button class="primary" type="submit">GABUNG ROOM <span>→</span></button>
+    </form>
+  </dialog>
+
+  <dialog id="helpDialog">
+    <button class="close-dialog" aria-label="Tutup">×</button>
+    <div class="eyebrow">SEKOLAH LANGIT</div>
+    <h2>Terbang. Silang. Sentak.</h2>
+    <p>Silangkan benangmu dengan benang lawan, jaga tegangan di <b>60–85%</b>, lalu sentak untuk memberikan abrasi lebih besar. Sudut silang <b>45°–70°</b> paling tajam, dan yang menarik benang lebih cepat menang gesekan.</p>
+    <div class="help-grid">
+      <span>W / S</span><p>Menukik / menanjak</p>
+      <span>A / D</span><p>Belok kiri / kanan</p>
+      <span>Scroll ↑ / ↓</span><p>Ulur / tarik benang (atau R / F)</p>
+      <span>Klik kiri</span><p>Sentakan (Snatch Strike), jeda 1,1 detik</p>
+      <span>Tanpa input</span><p>Tali ditahan otomatis (tegangan terkunci, lebih tahan gesekan)</p>
+      <span>Q / Space</span><p>Skill khusus kelas</p>
+      <span>Shift</span><p>Sprint dive, memakai stamina</p>
+      <span>V</span><p>Ganti kamera</p>
+    </div>
+    <label class="check"><input id="invertY" type="checkbox" /> Balik kontrol: <b>W = naik</b>, S = turun</label>
+    <p class="help-warning">Tegangan ≥90% selama 1,5 detik memutus benang. Keluar zona badai selama 5 detik berarti gugur. Hindari benang hantu yang melayang dari layangan putus.</p>
+    <p class="muted">Mobile: joystick kiri, slider ulur/tarik kanan, tombol SENTAK, SKILL dan DIVE. Lepas semua kontrol untuk menahan tali. Bot ditandai BOT.</p>
+  </dialog>
+
+  <!-- AJAKAN LAYAR PENUH (mobile) -->
+  <section id="fullscreenGate" class="overlay hidden" aria-live="polite">
+    <div class="modal fs-modal">
+      <div class="fs-icon">⤢</div>
+      <div class="eyebrow">MODE LAYAR PENUH</div>
+      <h2>Terbang tanpa batas.</h2>
+      <p id="fsText">Kontrol layangan paling nyaman dalam layar penuh dan posisi landscape.</p>
+      <button id="fsEnter" class="primary">MASUK LAYAR PENUH <span>⤢</span></button>
+      <p id="fsRotate" class="fs-rotate">📱↻ Putar HP ke posisi landscape</p>
+      <button id="fsSkip" class="text-btn">Lanjut tanpa layar penuh</button>
+    </div>
+  </section>
+
+  <div id="toast" role="status"></div>
+  <div id="loading">Menyiapkan langit <span>0 / 11</span></div>
+
+  <script type="module" src="/js/main.js"></script>
+</body>
+</html>

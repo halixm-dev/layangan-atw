@@ -1,0 +1,20 @@
+{
+  "name": "adu-layangan-atw",
+  "version": "1.0.0",
+  "description": "Adu Layangan ATW - 3D Kite Dogfight Mini Battle Royale (web, multiplayer online)",
+  "main": "server/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js",
+    "assets": "node scripts/build-assets.js"
+  },
+  "keywords": ["game", "threejs", "multiplayer", "kite"],
+  "author": "Azy Creative",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^5.2.1",
+    "socket.io": "^4.8.3",
+    "three": "^0.186.0"
+  }
+}
